@@ -1,0 +1,9 @@
+version: '3'
+services:
+  email_service:
+    build: .
+    image: email-service:latest
+    volumes:
+      - .:/app
+    env_file:
+      - .env
