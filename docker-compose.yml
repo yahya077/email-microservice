@@ -3,6 +3,7 @@ services:
   email_service:
     build: .
     image: email-service:latest
+    platform: linux/amd64
     volumes:
       - .:/app
     env_file:

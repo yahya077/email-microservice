@@ -1,30 +1,48 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/yahya077/email-microservice/models"
 	"github.com/yahya077/email-microservice/service"
+	"os"
 )
 
-type kafkaDummyConsumer struct {
-	msg string
-}
-
-func (k *kafkaDummyConsumer) NewConsumer(msg string) {
-	k.msg = msg
-}
-
-func (k *kafkaDummyConsumer) ReadMessage() string {
-	return k.msg
-}
+var emailPayload models.EmailPayload
 
 func main() {
-	kafkaConsumer := kafkaDummyConsumer{}
+	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers": os.Getenv("BOOTSTRAP_SERVER"),
+		"security.protocol": os.Getenv("SECURITY_PROTOCOL"),
+		"sasl.username":     os.Getenv("SASL_USERNAME"),
+		"sasl.password":     os.Getenv("SASL_PASSWORD"),
+		"sasl.mechanism":    os.Getenv("SASL_MECHANISM"),
+		"group.id":          "myGroup",
+		"auto.offset.reset": "earliest",
+	})
 
-	kafkaConsumer.NewConsumer("Dummy email message body")
+	if err != nil {
+		fmt.Println(err)
+		panic(err)
+	}
 
-	msg := kafkaConsumer.ReadMessage()
+	consumer.SubscribeTopics([]string{os.Getenv("KAFKA_TOPIC")}, nil)
 
-	fmt.Println(msg)
+	for {
+		msg, err := consumer.ReadMessage(-1)
+		if err != nil {
+			fmt.Printf("Consumer error: %v (%v)\n", err, msg)
+			return
+		}
 
-	service.SendEmail(msg, "dummy-user@yahyahindioglu.com")
+		json.Unmarshal(msg.Value, &emailPayload)
+
+		fmt.Printf("Message on %s: %s\n", emailPayload.To, emailPayload.To)
+
+		service.SendEmail(emailPayload)
+
+	}
+
+	consumer.Close()
 }
