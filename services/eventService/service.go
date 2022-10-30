@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/yahya077/email-microservice/models"
+	"github.com/yahya077/email-microservice/services/emailerService"
 	"os"
 )
 
-func Listen(callBackFunc func(payload models.EmailPayload)) {
+func Listen(callBackFunc func(payload models.EmailPayload, emailer emailerService.IEmailer)) {
 	var emailPayload models.EmailPayload
 
 	consumer.SubscribeTopics([]string{os.Getenv("KAFKA_TOPIC")}, nil)
@@ -22,7 +23,7 @@ func Listen(callBackFunc func(payload models.EmailPayload)) {
 
 		json.Unmarshal(msg.Value, &emailPayload)
 
-		callBackFunc(emailPayload)
+		callBackFunc(emailPayload, emailerService.LoadEmailer(emailPayload))
 	}
 
 	consumer.Close()

@@ -6,5 +6,5 @@ import (
 )
 
 func main() {
-	eventService.Listen(emailerService.SendEmail)
+	eventService.Listen(emailerService.Send)
 }

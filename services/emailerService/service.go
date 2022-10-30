@@ -1,49 +1,53 @@
 package emailerService
 
 import (
-	"bytes"
-	"fmt"
 	"github.com/yahya077/email-microservice/models"
-	"html/template"
 	"net/smtp"
 	"os"
 )
 
-func SendEmail(payload models.EmailPayload) {
-	from := "no-reply@yahyahindioglu.com"
-	to := payload.To
+var EmailInit Email
 
-	username := os.Getenv("USERNAME")
-	password := os.Getenv("PASSWORD")
-	smtpHost := os.Getenv("HOST")
-	smtpPort := os.Getenv("PORT")
+func init() {
+	EmailInit.configure()
+}
 
-	auth := smtp.PlainAuth("", username, password, smtpHost)
+type IEmailer interface {
+	Send(payload models.EmailPayload, email Email)
+}
 
-	t, _ := template.ParseFiles("template/template.html")
+type Email struct {
+	username string
+	password string
+	smtpHost string
+	smtpPort string
+	auth     smtp.Auth
+	IEmailer IEmailer
+}
 
-	var body bytes.Buffer
+func (e *Email) configure() {
+	e.username = os.Getenv("USERNAME")
+	e.password = os.Getenv("PASSWORD")
+	e.smtpHost = os.Getenv("HOST")
+	e.smtpPort = os.Getenv("PORT")
+	e.setPlainAuth()
+}
 
-	mimeHeaders := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	body.Write([]byte(fmt.Sprintf("Subject: %s \n%s\n\n", payload.Subject, mimeHeaders)))
+func (e *Email) setPlainAuth() {
+	e.auth = smtp.PlainAuth("", e.username, e.password, e.smtpHost)
+}
 
-	e := t.Execute(&body, struct {
-		Subject string
-		Body    string
-	}{
-		Subject: payload.Subject,
-		Body:    payload.Message,
-	})
-
-	if e != nil {
-		fmt.Println(e)
-		return
+func LoadEmailer(payload models.EmailPayload) IEmailer {
+	switch payload.Type {
+	case "text":
+		//TODO: change with TextEmail
+		return HtmlEmail{}
+	default:
+		return HtmlEmail{}
 	}
 
-	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, body.Bytes())
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println("Email Sent!")
+}
+
+func Send(payload models.EmailPayload, emailer IEmailer) {
+	emailer.Send(payload, EmailInit)
 }
